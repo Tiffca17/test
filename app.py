@@ -130,3 +130,28 @@ async def createSensorData(sensor_data:sensorData):
     created_data = await db["sensorData"].find_one({"_id": new_data.inserted_id})
     return sensorData(**created_data)
 
+@app.get("/sensorData", status_code=200)
+async def get_device_states():
+    data = await db["sensorData"].find().to_list(999)
+    num = len(data) - 1
+    sensor = data[num]
+
+    all_settings = await db["settings"].find().to_list(999)
+    user_pref = all_settings[0]
+
+    components = {
+        "fan": False,
+        "light": False
+    }
+
+    if ((sensor["temperature"] == user_pref["user_temp"]) & (sensor["presence"] == True) ):
+        components["fan"] = True
+    else:
+        components["fan"] = False
+    
+    if ((sensor["datetime"] == user_pref["user_light"]) & (sensor["presence"] == True) ):
+        components["light"] = True
+    else:
+        components["light"] = False
+    
+    return components
