@@ -14,9 +14,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
-config = dotenv_values(".env")
+# config = dotenv_values(".env")
 
-client = motor.motor_asyncio.AsyncIOMotorClient(config["MONGO_URL"])
+client = motor.motor_asyncio.AsyncIOMotorClient(os.environ["mongodb+srv://tiffca17:haikyuu123@cluster0.xlsxqgb.mongodb.net/?retryWrites=true&w=majority"])
 db = client.ECSE3038_Project_Database
 
 app = FastAPI()
