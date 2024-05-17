@@ -89,7 +89,7 @@ def sunset_calculation():
 # get request to collect environmental data from ESP
 @app.get("/graph")
 async def get_data(size: int = None):
-    data = await db["data"].find().to_list(size)
+    data = await db["sensorData"].find().to_list(size)
     return TypeAdapter(List[sensorData]).validate_python(data)
 
 # to post fake data to test get
@@ -126,7 +126,10 @@ async def update_settings(settings_update: Settings = Body(...)):
     
 @app.post("/sensorData",status_code=201)
 async def createSensorData(sensor_data:sensorData):
-    new_data = await db["sensorData"].insert_one(sensor_data.model_dump())
+    entry_time = datetime.now().strftime("%d/%m/%Y, %H:%M:%S")
+    sensor_data_ = sensor_data.model_dump()
+    sensor_data_["datetime"] = entry_time
+    new_data = await db["sensorData"].insert_one(sensor_data_)
     created_data = await db["sensorData"].find_one({"_id": new_data.inserted_id})
     return sensorData(**created_data)
 
