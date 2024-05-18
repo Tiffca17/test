@@ -71,9 +71,7 @@ def parse_time(time_str):
 
  
 def convert24(time):
-    # Parse the time string into a datetime object
-    t = datetime.strptime(time, '%I:%M:%S %p')
-    # Format the datetime object into a 24-hour time string
+    t = datetime.strptime(time, '%H:%M:%S')
     return t.strftime('%H:%M:%S')
 
 def sunset_calculation():
@@ -87,18 +85,10 @@ def sunset_calculation():
     return sunset_24
 
 # get request to collect environmental data from ESP
-@app.get("/graph")
+@app.get("/graph", status_code=200)
 async def get_data(size: int = None):
     data = await db["sensorData"].find().to_list(size)
     return TypeAdapter(List[sensorData]).validate_python(data)
-
-# to post fake data to test get
-# @app.post("/graph", status_code=201)
-# async def create_data(data: graph):
-#     new_entry = await db["data"].insert_one(data.model_dump())
-#     created_entry = await db["data"].find_one({"_id": new_entry.inserted_id})
-
-#     return graph(**created_entry)
 
 @app.put("/settings", status_code=200)
 async def update_settings(settings_update: Settings = Body(...)):
@@ -133,31 +123,6 @@ async def createSensorData(sensor_data:sensorData):
     created_data = await db["sensorData"].find_one({"_id": new_data.inserted_id})
     return sensorData(**created_data)
 
-# @app.get("/sensorData", status_code=200)
-# async def get_device_states():
-#     data = await db["sensorData"].find().to_list(999)
-#     num = len(data) - 1
-#     sensor = data[num]
-
-#     all_settings = await db["settings"].find().to_list(999)
-#     user_pref = all_settings[0]
-
-#     components = {
-#         "fan": False,
-#         "light": False
-#     }
-
-#     if ((sensor["temperature"] == user_pref["user_temp"]) & (sensor["presence"] == True) ):
-#         components["fan"] = True
-#     else:
-#         components["fan"] = False
-    
-#     if ((sensor["datetime"] == user_pref["user_light"]) & (sensor["presence"] == True) ):
-#         components["light"] = True
-#     else:
-#         components["light"] = False
-    
-#     return components
 @app.get("/fan", status_code=200)
 async def fan_control():
     data = await db["sensorData"].find().to_list(999)
@@ -171,7 +136,6 @@ async def fan_control():
 
         if (sensors["temperature"] >= user_pref["user_temp"]):
             fanState = True
-        # else, turn it off
         else:
             fanState = False
     else:
@@ -192,13 +156,17 @@ async def light_control():
     all_settings = await db["settings"].find().to_list(999)
     user_pref = all_settings[0]
 
-    if (sensors["presence"] == True):
+    set_start_time = datetime.strptime(user_pref["user_light"], '%H:%M:%S')
+    set_end_time = datetime.strptime(user_pref["light_time_off"], '%H:%M:%S')
+    current_time = datetime.strptime(sensors["datetime"], '%H:%M:%S')
 
-        if (sensors["temperature"] >= user_pref["user_temp"]):
-            lightState = True
-        # else, turn it off
+    if (sensors["presence"] == True):
+        if ((current_time>set_start_time) & (current_time<set_end_time)):
+                lightState = True
         else:
-            lightState = False
+                lightState = False
+    else:
+        lightState = False
     
     componentState = {
         "light": lightState
@@ -206,63 +174,3 @@ async def light_control():
 
     return componentState
 
-    
-
-# @app.get("/sensorData", status_code=200)
-# async def turn_on_components():
-#     data = await db["sensorData"].find().to_list(999)
-
-#     # to use last entry in database
-#     last = len(data) - 1
-#     sensor_data = data[last]
-
-#     settings = await db["settings"].find().to_list(999)
-    
-#     user_setting = settings[0]
-
-#     # if someone is in the room, should stuff turn on?
-#     if (sensor_data["presence"] == True):
-#         # if temperature is hotter or equal to slated temperature, turn on fan
-#         if (sensor_data["temperature"] >= user_setting["user_temp"]):
-#             fanState = True
-#         # else, turn it off
-#         else:
-#             fanState = False
-
-#         # if current time is equal to the slated turn on time, turn on light
-#         if (user_setting["user_light"] == sensor_data["datetime"]):
-#             lightState =  True
-    
-#         else:
-#             on_check = await db["data"].find_one({"datetime": user_setting["user_light"]})
-#             off_check = await db["data"].find_one({"datetime": user_setting["light_time_off"]})
-            
-#             # if current time is equal to the slated turn off time, turn off light
-#             if (user_setting["light_time_off"] == sensor_data["datetime"]):
-#                 lightState =  False
-#             else:
-#                 # if a previous current time matches with the setting OFF time, that means the light off time has passed and light should be off
-#                 if(off_check != ""):
-#                     lightState = False
-#                 # if off time has NOT passed, check if ON time has passed
-#                 else:
-#                     # if a previous current time matches with the setting time, that means the light was on but hasn't turn off yet, therefore must be on
-#                     if(on_check != ""):
-#                         lightState = True
-#                     # otherwise, the turn on time hasn't come, light must be off
-#                     else:
-#                         lightState = False
-
-
-#         return_sensor_data = {
-#         "fan": fanState,
-#         "light": lightState
-#         }
-
-#     # if no one in room, everything off
-#     else:
-#         return_sensor_data = {
-#         "fan": False,
-#         "light": False
-#     }
-#     return return_sensor_data
